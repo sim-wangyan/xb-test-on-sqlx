@@ -2,13 +2,15 @@ package main
 
 import (
 	"fmt"
+	"testing"
+
+	"github.com/fndome/xb"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
-	. "github.com/x-ream/sqlxb"
-	"testing"
 )
 
 var Db *sqlx.DB
+
 func InitSqlxDB() *sqlx.DB {
 
 	var err interface{}
@@ -16,7 +18,7 @@ func InitSqlxDB() *sqlx.DB {
 		"root:123456@tcp(127.0.0.1:3306)/test?charset=utf8mb4&parseTime=True")
 	if err != nil {
 		fmt.Printf("connect DB failed, err:%v\n", err)
-		if Db != nil  {
+		if Db != nil {
 			Db.Close()
 		}
 	}
@@ -28,33 +30,36 @@ func InitSqlxDB() *sqlx.DB {
 
 func TestBulderX(t *testing.T) {
 
-	pet := Pet{}
-	cat := Cat{}
-	dog := Dog{}
-
 	//"COUNT(DISTINCT d.id) AS `d.id_count`"
+	arr := []interface{}{3000, 4000, 5000, 6000}
 
-	builder := NewBuilderX(&cat,"c")
-	builder.ResultKeys( "distinct c.color","COUNT(DISTINCT d.id) AS `d.id_count`")//"COUNT(DISTINCT d.id) AS `d.id_count`"
-	builder.Eq("p.id", 1)
+	subP := func(sb *xb.BuilderX) {
+		sb.Select("id").From("t_pet")
+	}
 
-	subP := Sub()
-	subP.ResultKeys("id").Source(&pet)
-	builder.SourceBuilder().Sub(subP).Alia("p").JoinOn(LEFT_JOIN,ON("id","c","pet_id"))
-
-	arr := []interface{}{3000,4000,5000,6000}
-	sub := Sub()
-	sub.ResultKeys("pet_id").Source(&dog).Eq("age",2).In("weight",arr...)
-	builder.SourceBuilder().Sub(sub).Alia("d").JoinOn(LEFT_JOIN,ON("id","c","pet_id"))
-
-	builder.SourceBuilder().Source(&cat).Alia("cat").JoinOn(INNER_JOIN,ON("pet_id","p","id"))
-	builder.
+	builder := xb.Of(&Cat{}).As("c").
+		Select("distinct c.color", "COUNT(DISTINCT d.id) AS `d.id_count`"). //"COUNT(DISTINCT d.id) AS `d.id_count`"
+		FromX(func(fb *xb.FromBuilder) {
+			fb.JOIN(xb.LEFT).Sub(subP).As("p").
+				On("p.id = c.pet_id").
+				Cond(func(on *xb.ON) {
+					on.Gt("p.weight", 10)
+				}).
+				JOIN(xb.INNER).Of("t_dog").As("d").
+				On("d.id = c.pet_id")
+		}).
+		Eq("p.id", 1).
+		In("weight", arr...).
 		GroupBy("c.color").
-		Having(Gt,"id",1000).
-		Sort("p.id",DESC).
-		Paged().Rows(10).Last(101)
+		Having(func(cb *xb.CondBuilderX) {
+			cb.Gt("id", 1000)
+		}).
+		Sort("p.id", xb.DESC).
+		Paged(func(pb *xb.PageBuilder) {
+			pb.Rows(10).Last(101)
+		})
 
-	vs, dataSql, countSql, kmp:= builder.WithoutOptimization().Build().Sql()
+	countSql, dataSql, vs, kmp := builder.WithoutOptimization().Build().SqlOfPage()
 	fmt.Println(dataSql)
 	fmt.Println(vs)
 	fmt.Println(kmp)
@@ -63,11 +68,10 @@ func TestBulderX(t *testing.T) {
 	InitSqlxDB()
 
 	catList := []Cat{}
-	err := Db.Select(&catList, dataSql,vs...)
+	err := Db.Select(&catList, dataSql, vs...)
 	if err != nil {
 		fmt.Println(err)
 	}
 	s := fmt.Sprintf("price : %v", *(catList[0].Price))
 	fmt.Println(s)
 }
-
