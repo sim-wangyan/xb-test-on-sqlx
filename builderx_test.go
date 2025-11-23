@@ -59,10 +59,10 @@ func TestBulderX(t *testing.T) {
 			pb.Rows(10).Last(101)
 		})
 
-	countSql, dataSql, vs, kmp := builder.WithoutOptimization().Build().SqlOfPage()
+	countSql, dataSql, vs, metaMap := builder.WithoutOptimization().Build().SqlOfPage()
 	fmt.Println(dataSql)
 	fmt.Println(vs)
-	fmt.Println(kmp)
+	fmt.Println(metaMap)
 	fmt.Println(countSql)
 
 	InitSqlxDB()
