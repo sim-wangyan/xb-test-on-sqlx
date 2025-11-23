@@ -1,5 +1,5 @@
 # xb-test-on-sqlx
-for testing [sqlxb](https://github.com/fndome/xb)
+for testing [xb](https://github.com/fndome/xb)
 
 
 ## Test case contribution
